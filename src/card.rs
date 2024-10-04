@@ -1,3 +1,5 @@
+use ratatui::widgets::canvas::Context;
+
 #[derive(Clone, Debug)]
 pub enum Suit {
     Diamond,
