@@ -32,12 +32,15 @@ pub struct Game {
 impl Game {
     pub fn update(&mut self, input: Input) {
         match self.state {
-            State::Start => self.new_go(),
+            State::Start => {
+                self.generate_deck();
+                self.reset_hands();
+            }
             State::MyTurn => match input {
                 Input::Hit => {
                     self.my_hand.push(self.deck.pop().unwrap());
 
-                    if Self::hand_value(&self.my_hand) > 21 {
+                    if Self::hand_value(&self.my_hand) > 20 || self.my_hand.len() == 5 {
                         self.calculate_result();
                     }
                 }
@@ -46,7 +49,7 @@ impl Game {
             },
             State::Result => match input {
                 Input::New => {
-                    self.new_go();
+                    self.reset_hands();
                 }
                 _ => (),
             },
@@ -63,8 +66,9 @@ impl Game {
         }
     }
 
-    fn new_go(&mut self) {
-        self.generate_deck();
+    fn reset_hands(&mut self) {
+        self.my_hand.clear();
+        self.dealer_hand.clear();
 
         self.my_hand.push(self.deck.pop().unwrap());
         self.dealer_hand.push(self.deck.pop().unwrap());
@@ -73,6 +77,10 @@ impl Game {
         self.dealer_hand.push(self.deck.pop().unwrap());
 
         self.state = State::MyTurn;
+
+        if Self::hand_value(&self.my_hand) == 21 {
+            self.calculate_result();
+        }
     }
 
     fn hand_value(hand: &Vec<Card>) -> i32 {
@@ -126,9 +134,6 @@ impl Game {
     }
 
     fn generate_deck(&mut self) {
-        self.my_hand.clear();
-        self.dealer_hand.clear();
-
         for suit in &SUITS {
             for rank in &RANKS {
                 self.deck.push(Card::new(suit.clone(), rank.clone()));
