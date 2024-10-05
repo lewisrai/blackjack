@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use rand::{prelude::SliceRandom, thread_rng};
 
 use crate::card::{Card, RANKS, SUITS};
@@ -9,15 +11,29 @@ pub enum Input {
     New,
 }
 
-enum State {
-    Start,
+#[derive(Clone, Copy, PartialEq)]
+pub enum State {
+    NewDeck,
     MyTurn,
     Result,
 }
 
+#[derive(Clone, Copy)]
+pub enum Winner {
+    None,
+    Me,
+    Dealer,
+}
+
 impl Default for State {
     fn default() -> Self {
-        State::Start
+        State::NewDeck
+    }
+}
+
+impl Default for Winner {
+    fn default() -> Self {
+        Winner::None
     }
 }
 
@@ -27,12 +43,16 @@ pub struct Game {
     deck: Vec<Card>,
     my_hand: Vec<Card>,
     dealer_hand: Vec<Card>,
+    winner: Winner,
+    profit: i32,
+    bet: i32,
 }
 
 impl Game {
     pub fn update(&mut self, input: Input) {
         match self.state {
-            State::Start => {
+            State::NewDeck => {
+                self.set_bet();
                 self.generate_deck();
                 self.reset_hands();
             }
@@ -49,11 +69,23 @@ impl Game {
             },
             State::Result => match input {
                 Input::New => {
-                    self.reset_hands();
+                    if self.deck.len() < 26 {
+                        self.state = State::NewDeck;
+                    } else {
+                        self.reset_hands();
+                    }
                 }
                 _ => (),
             },
         }
+    }
+
+    pub fn profit(&self) -> i32 {
+        self.profit
+    }
+
+    fn set_bet(&mut self) {
+        self.bet = 100;
     }
 
     fn calculate_result(&mut self) {
@@ -61,12 +93,55 @@ impl Game {
 
         self.dealer_hand[0].show();
 
-        while Self::hand_value(&self.dealer_hand) < 17 {
+        while Self::hand_value(&self.dealer_hand) < 17 || self.dealer_hand.len() > 4 {
             self.dealer_hand.push(self.deck.pop().unwrap());
+        }
+
+        let mut my_hand_value = Self::hand_value(&self.my_hand);
+        let mut dealer_hand_value = Self::hand_value(&self.dealer_hand);
+
+        if my_hand_value > 21 {
+            my_hand_value = -1;
+        }
+
+        if dealer_hand_value > 21 {
+            dealer_hand_value = -1;
+        }
+
+        let my_hand_length = self.my_hand.len();
+        let dealer_hand_length = self.dealer_hand.len();
+
+        if my_hand_length == 5 && my_hand_value != -1 {
+            if dealer_hand_length == 5 && dealer_hand_value != -1 {
+                self.winner = Winner::None;
+                self.profit += self.bet;
+                return;
+            } else {
+                self.winner = Winner::Me;
+                self.profit += (self.bet as f32 * 1.5) as i32;
+                return;
+            }
+        } else if dealer_hand_length == 5 && dealer_hand_value != -1 {
+            self.winner = Winner::Dealer;
+            return;
+        }
+
+        match my_hand_value.cmp(&dealer_hand_value) {
+            Ordering::Equal => {
+                self.winner = Winner::None;
+                self.profit += self.bet;
+            }
+            Ordering::Greater => {
+                self.winner = Winner::Me;
+                self.profit += (self.bet as f32 * 1.5) as i32;
+            }
+            Ordering::Less => self.winner = Winner::Dealer,
         }
     }
 
     fn reset_hands(&mut self) {
+        self.profit -= self.bet;
+
         self.my_hand.clear();
         self.dealer_hand.clear();
 
@@ -81,6 +156,10 @@ impl Game {
         if Self::hand_value(&self.my_hand) == 21 {
             self.calculate_result();
         }
+    }
+
+    pub fn bet(&self) -> i32 {
+        self.bet
     }
 
     fn hand_value(hand: &Vec<Card>) -> i32 {
@@ -129,13 +208,24 @@ impl Game {
         output
     }
 
-    pub fn deck_length(&self) -> String {
-        self.deck.len().to_string()
+    pub fn deck_length(&self) -> usize {
+        self.deck.len()
+    }
+
+    pub fn state(&self) -> State {
+        self.state
+    }
+
+    pub fn winner(&self) -> Winner {
+        self.winner
     }
 
     fn generate_deck(&mut self) {
+        self.deck.clear();
+
         for suit in &SUITS {
             for rank in &RANKS {
+                self.deck.push(Card::new(suit.clone(), rank.clone()));
                 self.deck.push(Card::new(suit.clone(), rank.clone()));
             }
         }

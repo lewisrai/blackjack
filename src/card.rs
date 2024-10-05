@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 #[derive(Clone, Debug)]
 pub enum Suit {
@@ -88,8 +88,11 @@ impl Card {
 
 impl Display for Card {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut text = "┌───────┐\n".to_string();
+
         if self.hidden {
-            return write!(f, "???");
+            text += "│       │\n│       │\n│   ?   │\n│       │\n│       │\n└───────┘\n";
+            return write!(f, "{}", text);
         }
 
         let suit_icon = match self.suit {
@@ -99,22 +102,100 @@ impl Display for Card {
             Suit::Spade => "♠",
         };
 
-        let rank_text = match self.rank {
-            Rank::Ace => "Ace",
-            Rank::Two => "Two",
-            Rank::Three => "Three",
-            Rank::Four => "Four",
-            Rank::Five => "Five",
-            Rank::Six => "Six",
-            Rank::Seven => "Seven",
-            Rank::Eight => "Eight",
-            Rank::Nine => "Nine",
-            Rank::Ten => "Ten",
-            Rank::Jack => "Jack",
-            Rank::Queen => "Queen",
-            Rank::King => "King",
+        match self.rank {
+            Rank::Ace => {
+                text += "│A      │\n";
+                text += "│       │\n";
+                text += &format!("│   {}   │\n", suit_icon);
+                text += "│       │\n";
+                text += "│      A│\n";
+            }
+            Rank::Two => {
+                text += "│2      │\n";
+                text += &format!("│   {}   │\n", suit_icon);
+                text += "│       │\n";
+                text += &format!("│   {}   │\n", suit_icon);
+                text += "│      2│\n";
+            }
+            Rank::Three => {
+                text += "│3      │\n";
+                text += &format!("│   {}   │\n", suit_icon);
+                text += &format!("│   {}   │\n", suit_icon);
+                text += &format!("│   {}   │\n", suit_icon);
+                text += "│      3│\n";
+            }
+            Rank::Four => {
+                text += "│4      │\n";
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += "│       │\n";
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += "│      4│\n";
+            }
+            Rank::Five => {
+                text += "│5      │\n";
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│   {}   │\n", suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += "│      5│\n";
+            }
+            Rank::Six => {
+                text += "│6      │\n";
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += "│      6│\n";
+            }
+            Rank::Seven => {
+                text += "│7      │\n";
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {}{}{}  │\n", suit_icon, suit_icon, suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += "│      7│\n";
+            }
+            Rank::Eight => {
+                text += &format!("│8 {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += "│       │\n";
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {} 8│\n", suit_icon, suit_icon);
+            }
+            Rank::Nine => {
+                text += &format!("│9 {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│   {}   │\n", suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {} 9│\n", suit_icon, suit_icon);
+            }
+            Rank::Ten => {
+                text += &format!("│10{} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {}  │\n", suit_icon, suit_icon);
+                text += &format!("│  {} {}10│\n", suit_icon, suit_icon);
+            }
+            Rank::Jack => {
+                text += "│J      │\n";
+                text += &format!("│ {}     │\n", suit_icon);
+                text += "│       │\n";
+                text += &format!("│     {} │\n", suit_icon);
+                text += "│      J│\n";
+            }
+            Rank::Queen => {
+                text += "│Q      │\n";
+                text += &format!("│ {}     │\n", suit_icon);
+                text += "│       │\n";
+                text += &format!("│     {} │\n", suit_icon);
+                text += "│      Q│\n";
+            }
+            Rank::King => {
+                text += "│K      │\n";
+                text += &format!("│ {}     │\n", suit_icon);
+                text += "│       │\n";
+                text += &format!("│     {} │\n", suit_icon);
+                text += "│      K│\n";
+            }
         };
 
-        write!(f, "{} {}", suit_icon, rank_text)
+        write!(f, "{}", text + "└───────┘\n")
     }
 }
