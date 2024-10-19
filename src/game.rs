@@ -2,13 +2,15 @@ use std::cmp::Ordering;
 
 use rand::{prelude::SliceRandom, thread_rng};
 
-use crate::card::{Card, RANKS, SUITS};
+use crate::card::Card;
 
+#[derive(PartialEq)]
 pub enum Input {
     None,
     Hit,
     Stay,
     New,
+    CompactMode,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -46,10 +48,15 @@ pub struct Game {
     winner: Winner,
     profit: i32,
     bet: i32,
+    compact_mode: bool,
 }
 
 impl Game {
     pub fn update(&mut self, input: Input) {
+        if input == Input::CompactMode {
+            self.compact_mode = !self.compact_mode;
+        }
+
         match self.state {
             State::NewDeck => {
                 self.set_bet();
@@ -84,6 +91,10 @@ impl Game {
         self.profit
     }
 
+    pub fn compact_mode(&self) -> bool {
+        self.compact_mode
+    }
+
     fn set_bet(&mut self) {
         self.bet = 100;
     }
@@ -93,7 +104,7 @@ impl Game {
 
         self.dealer_hand[0].show();
 
-        while Self::hand_value(&self.dealer_hand) < 17 || self.dealer_hand.len() > 4 {
+        while Self::hand_value(&self.dealer_hand) < 17 && self.dealer_hand.len() < 5 {
             self.dealer_hand.push(self.deck.pop().unwrap());
         }
 
@@ -190,8 +201,21 @@ impl Game {
         let mut output = String::new();
 
         for card in &self.my_hand {
-            output += &card.to_string();
-            output += "\n";
+            match self.compact_mode {
+                true => {
+                    output += &card.as_compact_string();
+                    output += "\n";
+                }
+
+                false => {
+                    let card_text = card.as_art_string_lines();
+
+                    for line in card_text {
+                        output += &line;
+                        output += "\n";
+                    }
+                }
+            }
         }
 
         output
@@ -201,8 +225,21 @@ impl Game {
         let mut output = String::new();
 
         for card in &self.dealer_hand {
-            output += &card.to_string();
-            output += "\n";
+            match self.compact_mode {
+                true => {
+                    output += &card.as_compact_string();
+                    output += "\n";
+                }
+
+                false => {
+                    let card_text = card.as_art_string_lines();
+
+                    for line in card_text {
+                        output += &line;
+                        output += "\n";
+                    }
+                }
+            }
         }
 
         output
@@ -223,12 +260,7 @@ impl Game {
     fn generate_deck(&mut self) {
         self.deck.clear();
 
-        for suit in &SUITS {
-            for rank in &RANKS {
-                self.deck.push(Card::new(suit.clone(), rank.clone()));
-                self.deck.push(Card::new(suit.clone(), rank.clone()));
-            }
-        }
+        self.deck.append(&mut Card::generate_deck());
 
         let mut rng = thread_rng();
         self.deck.shuffle(&mut rng);
