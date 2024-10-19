@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use rand::{prelude::SliceRandom, thread_rng};
+use rand::{prelude::SliceRandom, rngs::ThreadRng, thread_rng};
 
 use crate::card::Card;
 
@@ -14,93 +14,102 @@ pub enum Input {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum State {
-    NewDeck,
-    MyTurn,
-    Result,
-}
-
-#[derive(Clone, Copy)]
 pub enum Winner {
     None,
     Me,
     Dealer,
 }
 
-impl Default for State {
-    fn default() -> Self {
-        State::NewDeck
-    }
+#[derive(Clone, Copy, PartialEq)]
+pub enum State {
+    NewDeck,
+    MyTurn,
+    Result(Winner),
 }
 
-impl Default for Winner {
-    fn default() -> Self {
-        Winner::None
-    }
-}
-
-#[derive(Default)]
 pub struct Game {
     state: State,
+    rng: ThreadRng,
     deck: Vec<Card>,
     my_hand: Vec<Card>,
     dealer_hand: Vec<Card>,
-    winner: Winner,
     profit: i32,
     bet: i32,
     compact_mode: bool,
 }
 
 impl Game {
+    pub fn new() -> Self {
+        Self {
+            state: State::NewDeck,
+            rng: thread_rng(),
+            deck: Vec::new(),
+            my_hand: Vec::new(),
+            dealer_hand: Vec::new(),
+            profit: 0,
+            bet: 100,
+            compact_mode: false,
+        }
+    }
+
     pub fn update(&mut self, input: Input) {
         if input == Input::CompactMode {
             self.compact_mode = !self.compact_mode;
+            return;
         }
 
         match self.state {
             State::NewDeck => {
-                self.set_bet();
-                self.generate_deck();
-                self.reset_hands();
+                self.new_deck();
             }
             State::MyTurn => match input {
-                Input::Hit => {
-                    self.my_hand.push(self.deck.pop().unwrap());
-
-                    if Self::hand_value(&self.my_hand) > 20 || self.my_hand.len() == 5 {
-                        self.calculate_result();
-                    }
-                }
+                Input::Hit => self.hit(),
                 Input::Stay => self.calculate_result(),
                 _ => (),
             },
-            State::Result => match input {
-                Input::New => {
-                    if self.deck.len() < 26 {
-                        self.state = State::NewDeck;
-                    } else {
-                        self.reset_hands();
-                    }
-                }
+            State::Result(_) => match input {
+                Input::New => self.new_deck(),
                 _ => (),
             },
         }
     }
 
-    pub fn profit(&self) -> i32 {
-        self.profit
+    fn new_deck(&mut self) {
+        self.state = State::MyTurn;
+
+        if self.deck.len() < 26 {
+            self.deck.clear();
+            self.deck.append(&mut Card::generate_deck());
+            self.deck.shuffle(&mut self.rng);
+        }
+
+        self.profit -= self.bet;
+
+        self.my_hand.clear();
+        self.dealer_hand.clear();
+
+        self.my_hand.push(self.deck.pop().unwrap());
+        self.dealer_hand.push(self.deck.pop().unwrap());
+        self.my_hand.push(self.deck.pop().unwrap());
+        self.dealer_hand.push(self.deck.pop().unwrap());
+
+        self.dealer_hand[0].hide();
+
+        if Self::hand_value(&self.my_hand) == 21 {
+            self.calculate_result();
+        }
     }
 
-    pub fn compact_mode(&self) -> bool {
-        self.compact_mode
-    }
+    fn hit(&mut self) {
+        self.my_hand.push(self.deck.pop().unwrap());
 
-    fn set_bet(&mut self) {
-        self.bet = 100;
+        if Self::hand_value(&self.my_hand) > 20 || self.my_hand.len() == 5 {
+            self.calculate_result();
+        }
     }
 
     fn calculate_result(&mut self) {
-        self.state = State::Result;
+        self.state = State::Result(Winner::None);
 
         self.dealer_hand[0].show();
 
@@ -124,53 +133,26 @@ impl Game {
 
         if my_hand_length == 5 && my_hand_value != -1 {
             if dealer_hand_length == 5 && dealer_hand_value != -1 {
-                self.winner = Winner::None;
                 self.profit += self.bet;
-                return;
             } else {
-                self.winner = Winner::Me;
+                self.state = State::Result(Winner::Me);
                 self.profit += (self.bet as f32 * 1.5) as i32;
-                return;
             }
         } else if dealer_hand_length == 5 && dealer_hand_value != -1 {
-            self.winner = Winner::Dealer;
-            return;
-        }
-
-        match my_hand_value.cmp(&dealer_hand_value) {
-            Ordering::Equal => {
-                self.winner = Winner::None;
-                self.profit += self.bet;
+            self.state = State::Result(Winner::Dealer);
+        } else {
+            match my_hand_value.cmp(&dealer_hand_value) {
+                Ordering::Equal => {
+                    self.state = State::Result(Winner::None);
+                    self.profit += self.bet;
+                }
+                Ordering::Greater => {
+                    self.state = State::Result(Winner::Me);
+                    self.profit += (self.bet as f32 * 1.5) as i32;
+                }
+                Ordering::Less => self.state = State::Result(Winner::Dealer),
             }
-            Ordering::Greater => {
-                self.winner = Winner::Me;
-                self.profit += (self.bet as f32 * 1.5) as i32;
-            }
-            Ordering::Less => self.winner = Winner::Dealer,
         }
-    }
-
-    fn reset_hands(&mut self) {
-        self.profit -= self.bet;
-
-        self.my_hand.clear();
-        self.dealer_hand.clear();
-
-        self.my_hand.push(self.deck.pop().unwrap());
-        self.dealer_hand.push(self.deck.pop().unwrap());
-        self.dealer_hand[0].hide();
-        self.my_hand.push(self.deck.pop().unwrap());
-        self.dealer_hand.push(self.deck.pop().unwrap());
-
-        self.state = State::MyTurn;
-
-        if Self::hand_value(&self.my_hand) == 21 {
-            self.calculate_result();
-        }
-    }
-
-    pub fn bet(&self) -> i32 {
-        self.bet
     }
 
     fn hand_value(hand: &Vec<Card>) -> i32 {
@@ -185,13 +167,9 @@ impl Game {
             };
         }
 
-        while value > 21 {
-            if aces != 0 {
-                value -= 10;
-                aces -= 1;
-            } else {
-                break;
-            }
+        while value > 21 && aces != 0 {
+            value -= 10;
+            aces -= 1;
         }
 
         value
@@ -245,24 +223,23 @@ impl Game {
         output
     }
 
+    pub fn bet(&self) -> i32 {
+        self.bet
+    }
+
+    pub fn compact_mode(&self) -> bool {
+        self.compact_mode
+    }
+
     pub fn deck_length(&self) -> usize {
         self.deck.len()
     }
 
+    pub fn profit(&self) -> i32 {
+        self.profit
+    }
+
     pub fn state(&self) -> State {
         self.state
-    }
-
-    pub fn winner(&self) -> Winner {
-        self.winner
-    }
-
-    fn generate_deck(&mut self) {
-        self.deck.clear();
-
-        self.deck.append(&mut Card::generate_deck());
-
-        let mut rng = thread_rng();
-        self.deck.shuffle(&mut rng);
     }
 }

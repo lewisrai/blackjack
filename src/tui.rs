@@ -135,14 +135,15 @@ impl<'a> TUI<'a> {
                     .title_alignment(Alignment::Center),
             );
 
-        if game.state() == State::Result {
-            match game.winner() {
-                Winner::None => (paragraph_me.light_blue(), paragraph_dealer.light_blue()),
-                Winner::Me => (paragraph_me.light_green(), paragraph_dealer.light_red()),
-                Winner::Dealer => (paragraph_me.light_red(), paragraph_dealer.light_green()),
+        match game.state() {
+            State::Result(Winner::None) => {
+                (paragraph_me.light_blue(), paragraph_dealer.light_blue())
             }
-        } else {
-            (paragraph_me, paragraph_dealer)
+            State::Result(Winner::Me) => (paragraph_me.light_green(), paragraph_dealer.light_red()),
+            State::Result(Winner::Dealer) => {
+                (paragraph_me.light_red(), paragraph_dealer.light_green())
+            }
+            _ => (paragraph_me, paragraph_dealer),
         }
     }
 

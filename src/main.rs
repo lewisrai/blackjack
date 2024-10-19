@@ -8,7 +8,7 @@ use tui::TUI;
 
 fn main() -> std::io::Result<()> {
     let mut tui = TUI::new();
-    let mut game = Game::default();
+    let mut game = Game::new();
 
     loop {
         let mut input = Input::None;
