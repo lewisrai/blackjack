@@ -80,9 +80,16 @@ impl<'a> TUI<'a> {
         self.terminal.draw(|frame| {
             let (my_hand_widget, dealer_hand_widget) = Self::create_hand_widgets(game);
 
+            let area = frame.area();
+
+            if area.width < 26 || area.height < 12 {
+                frame.render_widget("TOO SMALL!", area);
+                return;
+            }
+
             match game.compact_mode() {
                 true => {
-                    let main_layout = self.main_layout_compact.split(frame.area());
+                    let main_layout = self.main_layout_compact.split(area);
 
                     frame.render_widget(&self.paragraph_title_compact, main_layout[0]);
 
@@ -108,7 +115,7 @@ impl<'a> TUI<'a> {
                     );
                 }
                 false => {
-                    let main_layout = self.main_layout.split(frame.area());
+                    let main_layout = self.main_layout.split(area);
 
                     frame.render_widget(&self.paragraph_title, main_layout[0]);
 

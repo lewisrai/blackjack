@@ -49,7 +49,7 @@ impl Game {
             deck: Vec::new(),
             my_hand: Vec::new(),
             dealer_hand: Vec::new(),
-            profit: -2000.0,
+            profit: 0.0,
             bet: 100.0,
             compact_mode: false,
         }
