@@ -1,11 +1,14 @@
 use std::cmp::Ordering;
 
-use rand::{prelude::SliceRandom, rngs::ThreadRng, thread_rng};
+use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng};
 
 use crate::card::{Card, DECK_SIZE};
 
 const NUMBER_OF_DECKS: usize = 2;
 pub const PLAYING_DECK_SIZE: usize = DECK_SIZE * NUMBER_OF_DECKS;
+const MIN_BET: f32 = 50.0;
+const MAX_BET: f32 = 500.0;
+const BET_INCREMENT: f32 = 50.0;
 
 #[derive(PartialEq)]
 pub enum Input {
@@ -13,6 +16,8 @@ pub enum Input {
     Hit,
     Stay,
     New,
+    IncreaseBet,
+    DecreaseBet,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -24,7 +29,6 @@ pub enum Winner {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum State {
-    NewDeck,
     MyTurn,
     Result(Winner),
 }
@@ -42,21 +46,18 @@ pub struct Game {
 impl Game {
     pub fn new() -> Self {
         Self {
-            state: State::NewDeck,
+            state: State::Result(Winner::None),
             rng: thread_rng(),
             deck: Vec::new(),
             my_hand: Vec::new(),
             dealer_hand: Vec::new(),
             profit: 0.0,
-            bet: 100.0,
+            bet: MIN_BET,
         }
     }
 
     pub fn update(&mut self, input: Input) {
         match self.state {
-            State::NewDeck => {
-                self.new_deck();
-            }
             State::MyTurn => match input {
                 Input::Hit => self.hit(),
                 Input::Stay => self.calculate_result(),
@@ -64,6 +65,14 @@ impl Game {
             },
             State::Result(_) => match input {
                 Input::New => self.new_deck(),
+                Input::IncreaseBet => {
+                    self.bet += BET_INCREMENT;
+                    self.bet = self.bet.clamp(MIN_BET, MAX_BET);
+                }
+                Input::DecreaseBet => {
+                    self.bet -= BET_INCREMENT;
+                    self.bet = self.bet.clamp(MIN_BET, MAX_BET);
+                }
                 _ => (),
             },
         }
@@ -72,7 +81,7 @@ impl Game {
     fn new_deck(&mut self) {
         self.state = State::MyTurn;
 
-        if self.deck.len() < 26 {
+        if self.deck.len() < DECK_SIZE / 2 {
             self.deck.clear();
             self.deck.append(&mut Card::generate_deck(NUMBER_OF_DECKS));
             self.deck.shuffle(&mut self.rng);

@@ -136,7 +136,7 @@ impl<'a> TUI<'a> {
                         create_stats_widget(game.profit(), game.bet(), game.deck_length());
                     frame.render_widget(stats_widget, main_layout[2]);
                 }
-                DrawMode::Normal | DrawMode::NormalCompact => {
+                DrawMode::NormalCompact | DrawMode::Normal => {
                     let main_layout = self.main_layout.split(area);
 
                     frame.render_widget(&self.paragraph_title, main_layout[0]);

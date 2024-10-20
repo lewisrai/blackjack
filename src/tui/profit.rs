@@ -1,8 +1,7 @@
 use std::cmp::Ordering;
 
 use ratatui::{
-    layout::Alignment,
-    prelude::Rect,
+    layout::{Alignment, Rect},
     style::Stylize,
     widgets::{Block, Paragraph},
 };
