@@ -11,12 +11,16 @@ use ratatui::{
 };
 
 use crate::card::Card;
-use crate::game::{Game, State, Winner};
+use crate::game::{Game, State, Winner, PLAYING_DECK_SIZE};
 
 pub struct TUI<'a> {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     paragraph_title: Paragraph<'a>,
     paragraph_title_compact: Paragraph<'a>,
+    main_layout: Layout,
+    main_layout_compact: Layout,
+    table: Layout,
+    table_compact: Layout,
 }
 
 impl<'a> TUI<'a> {
@@ -36,43 +40,63 @@ impl<'a> TUI<'a> {
             .alignment(Alignment::Center)
             .block(Block::bordered());
 
+        let main_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(8), Constraint::Percentage(100)]);
+
+        let main_layout_compact = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![
+                Constraint::Length(1),
+                Constraint::Percentage(100),
+                Constraint::Length(4),
+            ]);
+
+        let table = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Percentage(20),
+                Constraint::Percentage(30),
+                Constraint::Percentage(30),
+                Constraint::Percentage(20),
+            ]);
+
+        let table_compact = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)]);
+
         Self {
             terminal,
             paragraph_title,
             paragraph_title_compact: Paragraph::new("Blackjack").alignment(Alignment::Center),
+            main_layout,
+            main_layout_compact,
+            table,
+            table_compact,
         }
     }
 
     pub fn draw(&mut self, game: &Game) -> std::io::Result<()> {
         self.terminal.draw(|frame| {
+            let (my_hand_widget, dealer_hand_widget) = Self::create_hand_widgets(game);
+
             match game.compact_mode() {
                 true => {
-                    let main_layout = Layout::default()
-                        .direction(Direction::Vertical)
-                        .constraints(vec![
-                            Constraint::Length(1),
-                            Constraint::Percentage(100),
-                            Constraint::Length(4),
-                        ])
-                        .split(frame.area());
+                    let main_layout = self.main_layout_compact.split(frame.area());
 
                     frame.render_widget(&self.paragraph_title_compact, main_layout[0]);
 
-                    let table = Layout::default()
-                        .direction(Direction::Horizontal)
-                        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
-                        .split(main_layout[1]);
-
-                    let (my_hand_widget, dealer_hand_widget) = Self::create_hand_widgets(game);
+                    let table = self.table_compact.split(main_layout[1]);
 
                     frame.render_widget(my_hand_widget, table[0]);
                     frame.render_widget(dealer_hand_widget, table[1]);
 
-                    let mut text = "Profit: ".to_string() + &game.profit().to_string();
-                    text += ", Bet: ";
-                    text += &game.bet().to_string();
-                    text += "\nCards remaining: ";
-                    text += &game.deck_length().to_string();
+                    let text = format!(
+                        "Profit: {}, Bet: {}\nCards remaining: {}",
+                        game.profit(),
+                        game.bet(),
+                        game.deck_length()
+                    );
 
                     frame.render_widget(
                         Paragraph::new(text).alignment(Alignment::Center).block(
@@ -84,24 +108,11 @@ impl<'a> TUI<'a> {
                     );
                 }
                 false => {
-                    let main_layout = Layout::default()
-                        .direction(Direction::Vertical)
-                        .constraints(vec![Constraint::Length(8), Constraint::Percentage(100)])
-                        .split(frame.area());
+                    let main_layout = self.main_layout.split(frame.area());
 
                     frame.render_widget(&self.paragraph_title, main_layout[0]);
 
-                    let table = Layout::default()
-                        .direction(Direction::Horizontal)
-                        .constraints(vec![
-                            Constraint::Percentage(20),
-                            Constraint::Percentage(30),
-                            Constraint::Percentage(30),
-                            Constraint::Percentage(20),
-                        ])
-                        .split(main_layout[1]);
-
-                    let (my_hand_widget, dealer_hand_widget) = Self::create_hand_widgets(game);
+                    let table = self.table.split(main_layout[1]);
 
                     frame.render_widget(my_hand_widget, table[1]);
                     frame.render_widget(dealer_hand_widget, table[2]);
@@ -121,40 +132,37 @@ impl<'a> TUI<'a> {
 
     fn hand_as_string(hand: &Vec<Card>, compact_mode: bool) -> String {
         let mut output = String::new();
-        let mut is_second_card = false;
-        let mut first_card: Vec<String> = Vec::new();
-        let mut second_card: Vec<String> = Vec::new();
 
-        for card in hand {
-            match compact_mode {
-                true => {
-                    output += &card.as_compact_string();
-                    output += "\n";
-                }
-
-                false => {
-                    if is_second_card {
-                        second_card = card.as_art_string_lines();
-                        is_second_card = !is_second_card;
-
-                        for i in 0..first_card.len() {
-                            output += &first_card[i];
-                            output += " ";
-                            output += &second_card[i];
-                            output += "\n";
-                        }
-                    } else {
-                        first_card = card.as_art_string_lines();
-                        is_second_card = !is_second_card;
-                    }
+        match compact_mode {
+            true => {
+                for card in hand {
+                    output += &format!("{}\n", card.as_compact_string());
                 }
             }
-        }
+            false => {
+                let mut is_first_card = true;
+                let mut first_card = Vec::new();
+                let mut second_card;
 
-        if is_second_card {
-            for line in first_card {
-                output += &line;
-                output += "\n";
+                for card in hand {
+                    if is_first_card {
+                        first_card = card.as_art_string_lines();
+                        is_first_card = !is_first_card;
+                    } else {
+                        second_card = card.as_art_string_lines();
+                        is_first_card = !is_first_card;
+
+                        for i in 0..first_card.len() {
+                            output += &format!("{} {}\n", first_card[i], second_card[i]);
+                        }
+                    }
+                }
+
+                if !is_first_card {
+                    for line in first_card {
+                        output += &format!("{}\n", line);
+                    }
+                }
             }
         }
 
@@ -197,66 +205,63 @@ impl<'a> TUI<'a> {
     fn create_profit_widget(profit: f32, bet: f32, layout_area: Rect) -> Paragraph<'a> {
         let mut paragraph_profit = String::new();
 
-        let mut centre_line = "Profit : ".to_string() + &profit.to_string();
+        let mut centre_line = format!("Profit: {}", profit);
 
-        let table_height = layout_area.height - 2;
+        let table_height = (layout_area.height - 2) as i32;
+        let half_table_height = table_height / 2;
+
         let mut double_line = false;
 
         if table_height % 2 == 0 {
-            centre_line += &"\n    Bet: ".to_string();
-            centre_line += &bet.to_string();
+            centre_line += &format!("\n    Bet: {}", bet);
             double_line = true;
         } else {
-            centre_line += &", Bet: ".to_string();
-            centre_line += &bet.to_string();
+            centre_line += &format!(", Bet: {}", bet);
         }
-
-        let mut skip_next = false;
 
         let lines = (profit.abs() / 100.0) as i32;
 
+        let bar = "█".repeat((layout_area.width - 4) as usize);
+
+        let mut skip_next = false;
+
         for height in 0..table_height {
             if skip_next {
-                skip_next = false;
+                skip_next = !skip_next;
                 continue;
             }
 
-            for _ in 0..layout_area.width - 4 {
-                if double_line {
-                    if height == table_height / 2 - 1 {
-                        paragraph_profit += &centre_line;
-                        skip_next = true;
-                        break;
-                    }
+            if double_line {
+                if height == half_table_height - 1 {
+                    paragraph_profit += &centre_line;
+                    skip_next = !skip_next;
+                    paragraph_profit += "\n";
+                    continue;
+                }
 
-                    if profit > 0.0 {
-                        if height > table_height / 2 - 2 - lines as u16
-                            && height < table_height / 2 - 1
-                        {
-                            paragraph_profit += "█";
-                        }
-                    } else {
-                        if height < table_height / 2 + 1 + lines as u16 && height > table_height / 2
-                        {
-                            paragraph_profit += "█";
-                        }
+                if profit > 0.0 {
+                    if height > half_table_height - 2 - lines && height < half_table_height - 1 {
+                        paragraph_profit += &bar;
                     }
                 } else {
-                    if height == table_height / 2 {
-                        paragraph_profit += &centre_line;
-                        break;
+                    if height < half_table_height + 1 + lines && height > half_table_height {
+                        paragraph_profit += &bar;
                     }
+                }
+            } else {
+                if height == half_table_height {
+                    paragraph_profit += &centre_line;
+                    paragraph_profit += "\n";
+                    continue;
+                }
 
-                    if profit > 0.0 {
-                        if height > table_height / 2 - 1 - lines as u16 && height < table_height / 2
-                        {
-                            paragraph_profit += "█";
-                        }
-                    } else {
-                        if height < table_height / 2 + 1 + lines as u16 && height > table_height / 2
-                        {
-                            paragraph_profit += "█";
-                        }
+                if profit > 0.0 {
+                    if height > half_table_height - 1 - lines && height < half_table_height {
+                        paragraph_profit += &bar;
+                    }
+                } else {
+                    if height < half_table_height + 1 + lines && height > half_table_height {
+                        paragraph_profit += &bar;
                     }
                 }
             }
@@ -280,11 +285,10 @@ impl<'a> TUI<'a> {
     }
 
     fn create_deck_widget(cards_remaining: usize, layout_area: Rect) -> Paragraph<'a> {
-        let mut paragraph_deck =
-            "Cards remaining: ".to_string() + &cards_remaining.to_string() + "\n\n";
+        let mut paragraph_deck = format!("Cards remaining: {}\n\n", cards_remaining);
 
         let deck_height = layout_area.height - 4;
-        let cutoff = 1.0 - (cards_remaining as f32 / 104.0);
+        let cutoff = 1.0 - (cards_remaining as f32 / PLAYING_DECK_SIZE as f32);
 
         for height in 0..deck_height {
             if height as f32 / deck_height as f32 > cutoff {

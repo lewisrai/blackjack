@@ -1,3 +1,5 @@
+pub const DECK_SIZE: usize = 52;
+
 #[derive(Clone, Debug)]
 pub enum Suit {
     Club,
@@ -215,7 +217,7 @@ impl Card {
         text
     }
 
-    pub fn generate_deck() -> Vec<Card> {
+    pub fn generate_deck(number_of_decks: usize) -> Vec<Card> {
         let suits = [Suit::Diamond, Suit::Heart, Suit::Club, Suit::Spade];
         let ranks = [
             Rank::Ace,
@@ -237,8 +239,9 @@ impl Card {
 
         for suit in &suits {
             for rank in &ranks {
-                deck.push(Card::new(suit.clone(), rank.clone()));
-                deck.push(Card::new(suit.clone(), rank.clone()));
+                for _ in 0..number_of_decks {
+                    deck.push(Card::new(suit.clone(), rank.clone()));
+                }
             }
         }
 

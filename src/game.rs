@@ -2,7 +2,10 @@ use std::cmp::Ordering;
 
 use rand::{prelude::SliceRandom, rngs::ThreadRng, thread_rng};
 
-use crate::card::Card;
+use crate::card::{Card, DECK_SIZE};
+
+const NUMBER_OF_DECKS: usize = 2;
+pub const PLAYING_DECK_SIZE: usize = DECK_SIZE * NUMBER_OF_DECKS;
 
 #[derive(PartialEq)]
 pub enum Input {
@@ -46,7 +49,7 @@ impl Game {
             deck: Vec::new(),
             my_hand: Vec::new(),
             dealer_hand: Vec::new(),
-            profit: 0.0,
+            profit: -2000.0,
             bet: 100.0,
             compact_mode: false,
         }
@@ -79,7 +82,7 @@ impl Game {
 
         if self.deck.len() < 26 {
             self.deck.clear();
-            self.deck.append(&mut Card::generate_deck());
+            self.deck.append(&mut Card::generate_deck(NUMBER_OF_DECKS));
             self.deck.shuffle(&mut self.rng);
         }
 
