@@ -10,6 +10,7 @@ use ratatui::{
     Terminal,
 };
 
+use crate::card::Card;
 use crate::game::{Game, State, Winner};
 
 pub struct TUI<'a> {
@@ -118,22 +119,68 @@ impl<'a> TUI<'a> {
         Ok(())
     }
 
-    fn create_hand_widgets(game: &Game) -> (Paragraph, Paragraph) {
-        let paragraph_me = Paragraph::new(game.my_hand())
-            .alignment(Alignment::Center)
-            .block(
-                Block::bordered()
-                    .title("My Hand")
-                    .title_alignment(Alignment::Center),
-            );
+    fn hand_as_string(hand: &Vec<Card>, compact_mode: bool) -> String {
+        let mut output = String::new();
+        let mut is_second_card = false;
+        let mut first_card: Vec<String> = Vec::new();
+        let mut second_card: Vec<String> = Vec::new();
 
-        let paragraph_dealer = Paragraph::new(game.dealer_hand())
-            .alignment(Alignment::Center)
-            .block(
-                Block::bordered()
-                    .title("Dealer Hand")
-                    .title_alignment(Alignment::Center),
-            );
+        for card in hand {
+            match compact_mode {
+                true => {
+                    output += &card.as_compact_string();
+                    output += "\n";
+                }
+
+                false => {
+                    if is_second_card {
+                        second_card = card.as_art_string_lines();
+                        is_second_card = !is_second_card;
+
+                        for i in 0..first_card.len() {
+                            output += &first_card[i];
+                            output += " ";
+                            output += &second_card[i];
+                            output += "\n";
+                        }
+                    } else {
+                        first_card = card.as_art_string_lines();
+                        is_second_card = !is_second_card;
+                    }
+                }
+            }
+        }
+
+        if is_second_card {
+            for line in first_card {
+                output += &line;
+                output += "\n";
+            }
+        }
+
+        output
+    }
+
+    fn create_hand_widgets(game: &Game) -> (Paragraph, Paragraph) {
+        let paragraph_me =
+            Paragraph::new(Self::hand_as_string(game.my_hand(), game.compact_mode()))
+                .alignment(Alignment::Center)
+                .block(
+                    Block::bordered()
+                        .title("My Hand")
+                        .title_alignment(Alignment::Center),
+                );
+
+        let paragraph_dealer = Paragraph::new(Self::hand_as_string(
+            game.dealer_hand(),
+            game.compact_mode(),
+        ))
+        .alignment(Alignment::Center)
+        .block(
+            Block::bordered()
+                .title("Dealer Hand")
+                .title_alignment(Alignment::Center),
+        );
 
         match game.state() {
             State::Result(Winner::None) => {
@@ -147,7 +194,7 @@ impl<'a> TUI<'a> {
         }
     }
 
-    fn create_profit_widget(profit: i32, bet: i32, layout_area: Rect) -> Paragraph<'a> {
+    fn create_profit_widget(profit: f32, bet: f32, layout_area: Rect) -> Paragraph<'a> {
         let mut paragraph_profit = String::new();
 
         let mut centre_line = "Profit : ".to_string() + &profit.to_string();
@@ -166,7 +213,7 @@ impl<'a> TUI<'a> {
 
         let mut skip_next = false;
 
-        let lines = (profit.abs() / 100) as i32;
+        let lines = (profit.abs() / 100.0) as i32;
 
         for height in 0..table_height {
             if skip_next {
@@ -182,7 +229,7 @@ impl<'a> TUI<'a> {
                         break;
                     }
 
-                    if profit > 0 {
+                    if profit > 0.0 {
                         if height > table_height / 2 - 2 - lines as u16
                             && height < table_height / 2 - 1
                         {
@@ -200,7 +247,7 @@ impl<'a> TUI<'a> {
                         break;
                     }
 
-                    if profit > 0 {
+                    if profit > 0.0 {
                         if height > table_height / 2 - 1 - lines as u16 && height < table_height / 2
                         {
                             paragraph_profit += "█";
@@ -225,7 +272,7 @@ impl<'a> TUI<'a> {
                     .title_alignment(Alignment::Center),
             );
 
-        match profit.cmp(&0) {
+        match profit.total_cmp(&0.0) {
             Ordering::Equal => create_paragraph_profit,
             Ordering::Greater => create_paragraph_profit.light_green(),
             Ordering::Less => create_paragraph_profit.light_red(),

@@ -33,8 +33,8 @@ pub struct Game {
     deck: Vec<Card>,
     my_hand: Vec<Card>,
     dealer_hand: Vec<Card>,
-    profit: i32,
-    bet: i32,
+    profit: f32,
+    bet: f32,
     compact_mode: bool,
 }
 
@@ -46,8 +46,8 @@ impl Game {
             deck: Vec::new(),
             my_hand: Vec::new(),
             dealer_hand: Vec::new(),
-            profit: 0,
-            bet: 100,
+            profit: 0.0,
+            bet: 100.0,
             compact_mode: false,
         }
     }
@@ -136,7 +136,7 @@ impl Game {
                 self.profit += self.bet;
             } else {
                 self.state = State::Result(Winner::Me);
-                self.profit += (self.bet as f32 * 1.5) as i32;
+                self.profit += self.bet * 1.5;
             }
         } else if dealer_hand_length == 5 && dealer_hand_value != -1 {
             self.state = State::Result(Winner::Dealer);
@@ -148,7 +148,7 @@ impl Game {
                 }
                 Ordering::Greater => {
                     self.state = State::Result(Winner::Me);
-                    self.profit += (self.bet as f32 * 1.5) as i32;
+                    self.profit += self.bet * 1.5;
                 }
                 Ordering::Less => self.state = State::Result(Winner::Dealer),
             }
@@ -175,55 +175,15 @@ impl Game {
         value
     }
 
-    pub fn my_hand(&self) -> String {
-        let mut output = String::new();
-
-        for card in &self.my_hand {
-            match self.compact_mode {
-                true => {
-                    output += &card.as_compact_string();
-                    output += "\n";
-                }
-
-                false => {
-                    let card_text = card.as_art_string_lines();
-
-                    for line in card_text {
-                        output += &line;
-                        output += "\n";
-                    }
-                }
-            }
-        }
-
-        output
+    pub fn my_hand(&self) -> &Vec<Card> {
+        &self.my_hand
     }
 
-    pub fn dealer_hand(&self) -> String {
-        let mut output = String::new();
-
-        for card in &self.dealer_hand {
-            match self.compact_mode {
-                true => {
-                    output += &card.as_compact_string();
-                    output += "\n";
-                }
-
-                false => {
-                    let card_text = card.as_art_string_lines();
-
-                    for line in card_text {
-                        output += &line;
-                        output += "\n";
-                    }
-                }
-            }
-        }
-
-        output
+    pub fn dealer_hand(&self) -> &Vec<Card> {
+        &self.dealer_hand
     }
 
-    pub fn bet(&self) -> i32 {
+    pub fn bet(&self) -> f32 {
         self.bet
     }
 
@@ -235,7 +195,7 @@ impl Game {
         self.deck.len()
     }
 
-    pub fn profit(&self) -> i32 {
+    pub fn profit(&self) -> f32 {
         self.profit
     }
 
