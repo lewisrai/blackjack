@@ -20,7 +20,6 @@ fn main() -> std::io::Result<()> {
                     KeyCode::Char('h') => input = Input::Hit,
                     KeyCode::Char('s') => input = Input::Stay,
                     KeyCode::Char('n') => input = Input::New,
-                    KeyCode::Char('c') => input = Input::CompactMode,
                     _ => (),
                 }
             }

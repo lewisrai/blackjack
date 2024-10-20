@@ -13,7 +13,6 @@ pub enum Input {
     Hit,
     Stay,
     New,
-    CompactMode,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -38,7 +37,6 @@ pub struct Game {
     dealer_hand: Vec<Card>,
     profit: f32,
     bet: f32,
-    compact_mode: bool,
 }
 
 impl Game {
@@ -51,16 +49,10 @@ impl Game {
             dealer_hand: Vec::new(),
             profit: 0.0,
             bet: 100.0,
-            compact_mode: false,
         }
     }
 
     pub fn update(&mut self, input: Input) {
-        if input == Input::CompactMode {
-            self.compact_mode = !self.compact_mode;
-            return;
-        }
-
         match self.state {
             State::NewDeck => {
                 self.new_deck();
@@ -188,10 +180,6 @@ impl Game {
 
     pub fn bet(&self) -> f32 {
         self.bet
-    }
-
-    pub fn compact_mode(&self) -> bool {
-        self.compact_mode
     }
 
     pub fn deck_length(&self) -> usize {
